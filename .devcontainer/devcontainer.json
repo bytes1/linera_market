@@ -1,0 +1,21 @@
+{
+  "name": "Linera Dev Container",
+
+  // This tells VS Code to use your base file AND your new
+  // override file.
+  "dockerComposeFile": [
+    "../compose.yaml",
+    "../docker-compose.dev.yaml"
+  ],
+
+  "service": "app",
+  "workspaceFolder": "/build",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
+}

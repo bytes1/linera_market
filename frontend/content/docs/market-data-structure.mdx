@@ -1,0 +1,160 @@
+---
+title: Market Data Structure
+---
+
+Learn how market data is created, organized, and used in True Market.
+
+## How Market Data is Created
+
+Market data in True Market is stored and managed through a TypeScript interface and data array. This page explains how this structure works.
+
+## Market Interface
+
+Every market in True Market follows this structure:
+
+```typescript
+export interface Market {
+  market_id: number;
+  market_title: string;
+  category: "Crypto" | "Politics" | "Sports" | "Entertainment";
+  outcome_a: string;
+  outcome_b: string;
+  yesPercentage: number;
+  noPercentage: number;
+  volume: string;
+  participants: number;
+  deadline: string;
+  marketType: string;
+  currency: string;
+  market_data: string;
+  image: string;
+  isFlashMarket?: boolean;
+  isClosed?: boolean;
+  cardStyle?: "image" | "text";
+}
+```
+
+## Market Properties Explained
+
+**Basic Information**
+
+|**Property** | **Type** | **Description**	    |   **Example** |
+|-------------|----------|----------------------|---------------|
+|market_id	  |number	|Unique identifier for the market |	0, 1, 2
+|market_title |	string	|Title/question of the market | "Gold vs ETH - Which hits $5K first?" |
+|category	  |string	| category |	"Crypto", "Politics", "Sports" |
+|marketType	  |string	|Type of market structure	| "Binary" |
+
+**Outcomes**
+
+|**Property** | **Type** | **Description**	    |   **Example** |
+|-------------|----------|----------------------|---------------|
+|outcome_a	 | string	| First possible outcome	| "Gold", "YES", "Edwards" |
+|outcome_b	 | string	| Second possible outcome	| "ETH", "NO", "Muhammad" |
+
+**Market Statistics**
+
+|**Property** | **Type** | **Description**	    |   **Example** |
+|-------------|----------|----------------------|---------------|
+|yesPercentage	|number|	Current probability of outcome_a|	50, 65, 75|
+|noPercentage	|number	|Current probability of outcome_b|	50, 35, 25|
+|volume	|string|	Total trading volume|	"0", "1000k", "5.2M"|
+|participants|	number|	Number of traders in market	|2, 42, 108|
+
+**Timeline & Status**
+
+|**Property** | **Type** | **Description**	    |   **Example** |
+|-------------|----------|----------------------|---------------|
+|deadline	|string	|When market closes or resolves|	"Dec 31, 2025", "Jan 1", "HIT"|
+|isFlashMarket	|boolean	|Is this a short-term flash market?|	true, false|
+|isClosed	|boolean	|Is market closed for trading?|	true, false|
+
+**Market Details**
+
+|**Property** | **Type** | **Description**	    |   **Example** |
+|-------------|----------|----------------------|---------------|
+|currency	|string	|Token used for trading	|"MUSD"|
+|market_data	|string	|Full market details and rules	|Long text with resolution criteria|
+|image	|string	|IPFS link to market image	|"https://ipfs.io/ipfs/Qm..."|
+|cardStyle	|string	|How to display card	|"image", "text"|
+
+
+
+**Complete Market Example**
+
+Here's a complete market object:
+
+```typescript
+{
+  market_id: 0,
+  market_title: "Gold vs ETH - Which hits $5K first?",
+  category: "Crypto",
+  outcome_a: "Gold",
+  outcome_b: "ETH",
+  yesPercentage: 50,
+  noPercentage: 50,
+  volume: "0",
+  participants: 2,
+  deadline: "Dec 31, 2025",
+  marketType: "Binary",
+  currency: "MUSD",
+  market_data: `Gold vs ETH - Which hits $5K first?;**Market Details:**\n\n- **Market Close:** This market will only be closed once a resolution is achieved.\n- **Resolution Deadline:** The resolution will be determined as soon as an outcome is reached.\n- **Market Target:** $5,000.00.\n\n**Resolution Criteria:**\n\nThe market resolves based on which asset first **reaches or exceeds the Market Target:**\n\n- **"ETH"** if Ethereum (ETH/USDT) price on Binance hits or exceeds the Market Target.\n- **"GOLD"** if Gold (XAU/USD) price on TradingView hits or exceeds the Market Target.`,
+  image: "https://ipfs.io/ipfs/QmQfWHShio7K1Ev6BtTEA4CBC55VJRAPmXRkS6wwzhhiSb",
+  cardStyle: "image"
+}
+```
+
+
+**Data Array Structure**
+
+All markets are stored in a single data array:
+
+```typescript
+export const data: Market[] = [
+  { market_id: 0, ... },
+  { market_id: 1, ... },
+  { market_id: 2, ... },
+  { market_id: 3, ... },
+]
+```
+
+
+**File Location**
+
+Market data is stored at:
+
+text
+lib/
+  data.ts          ← Market data file
+
+
+**Data Properties Checklist**
+
+When creating a market, ensure you have:
+
+✅ Unique market_id
+
+✅ Clear market_title (question format)
+
+✅ Valid category
+
+✅ Two distinct outcome_a and outcome_b
+
+✅ Initial probabilities for yesPercentage and noPercentage
+
+✅ volume string (e.g., "0", "1k", "10M")
+
+✅ Starting participants count
+
+✅ deadline date
+
+✅ marketType (usually "Binary")
+
+✅ Currency (currency)
+
+✅ Complete market_data with rules
+
+✅ IPFS image URL
+
+✅ cardStyle preference ("image" or "text")
+

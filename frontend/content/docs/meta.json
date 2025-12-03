@@ -1,0 +1,5 @@
+{
+  "pages": ["index", "getting-started", "trading-guide", 
+  "ai-assistant", "liquidity-pools", "portfolio-management", "transaction-settlement", "security-best-practices", 
+  "market-data-structure", "troubleshooting-faq"]
+}
