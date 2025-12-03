@@ -1,0 +1,6 @@
+# docker-compose.dev.yaml
+services:
+  app:
+    # This command overrides the Dockerfile's ENTRYPOINT
+    # and just waits forever.
+    entrypoint: /bin/sh -c "while sleep 1000; do :; done"
