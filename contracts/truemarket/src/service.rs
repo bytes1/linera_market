@@ -9,7 +9,7 @@ use async_graphql::{
 };
 use linera_sdk::{
     graphql::GraphQLMutationRoot, linera_base_types::WithServiceAbi, views::View, Service,
-    ServiceRuntime,
+    ServiceRuntime
 };
 
 use truemarket::{Operation, TruemarketAbi, MarketState, MAX_OUTCOMES};
@@ -53,7 +53,6 @@ impl Service for TruemarketService {
     }
 }
 
-/// What we expose over GraphQL for a market
 #[derive(SimpleObject)]
 struct MarketView {
     id: u64,
@@ -99,7 +98,6 @@ impl QueryRoot {
         }))
     }
 
-    /// Fetch the authenticated user's shares
     async fn my_shares(
         &self,
         ctx: &Context<'_>,
@@ -107,15 +105,9 @@ impl QueryRoot {
     ) -> async_graphql::Result<Vec<ShareView>> {
         let state = ctx.data::<Arc<TruemarketState>>()?;
         let mut results = Vec::new();
-
-        // FIX: We cannot load `state.markets.get(&market_id)` here because
-        // the User Chain doesn't have the market definition.
-        // Instead, we blindly check all possible outcome slots.
         
         for outcome_id in 0..MAX_OUTCOMES {
             let key = (market_id, outcome_id);
-            
-            // Check if we have shares for this outcome
             let amount = state
                 .my_shares
                 .get(&key)

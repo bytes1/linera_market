@@ -40,9 +40,29 @@ pub enum Operation {
         outcome_id: u32,
         min_outcome_shares_to_buy: Amount,
         value: Amount,
-        // ADDED: Required so the User Chain knows what token to send
         token: ApplicationId, 
     },
+    Sell {
+        market_id: u64,
+        outcome_id: u32,
+        shares: Amount,
+        token: ApplicationId,
+    },
+    Resolve {
+        market_id: u64,
+        winning_outcome: u32,
+    },
+    Claim {
+        market_id: u64,
+        token: ApplicationId,
+    },
+    TestRemoteTransfer {
+        token: ApplicationId,
+        amount: Amount,
+        target_chain: ChainId,
+        target_owner: AccountOwner,
+        sender: AccountOwner, 
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -53,14 +73,36 @@ pub enum Message {
         min_outcome_shares_to_buy: Amount,
         owner: AccountOwner,
         value: Amount,
-        // Added to support receipts
         return_chain_id: ChainId, 
     },
-    // Receipt message sent back to the user
+    Sell {
+        market_id: u64,
+        outcome_id: u32,
+        shares: u128,
+        owner: AccountOwner,
+        return_chain_id: ChainId,
+    },
+    Claim {
+        market_id: u64,
+        owner: AccountOwner,
+        return_chain_id: ChainId,
+    },
     ShareMinted {
         market_id: u64,
         outcome_id: u32,
         amount: u128,
+    },
+    ShareBurnt {
+        market_id: u64,
+        outcome_id: u32,
+        amount: u128,
+    },
+    TestRemoteTransfer {
+        token: ApplicationId,
+        amount: Amount,
+        target_chain: ChainId,
+        target_owner: AccountOwner,
+        sender: AccountOwner,
     }
 }
 

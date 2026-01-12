@@ -1,25 +1,22 @@
 use serde::{Deserialize, Serialize};
-
 use linera_sdk::views::{linera_views, MapView, RegisterView, RootView, ViewStorageContext};
 use linera_sdk::linera_base_types::{ApplicationId, AccountOwner, Timestamp, Amount};
-
 use truemarket::{Fees, MarketState};
 
 #[derive(RootView)]
 #[view(context = ViewStorageContext)]
 pub struct TruemarketState {
-    /// Total number of markets created.
     #[view(default)]
     pub market_index: RegisterView<u64>,
 
-    /// Storage for Market details.
     #[view(default)]
     pub markets: MapView<u64, Market>,
 
-    /// User shares: (Market ID, Outcome ID, AccountOwner) -> Share Amount
+    // User shares: (Market ID, Outcome ID, AccountOwner) -> Share Amount
     #[view(default)]
     pub market_shares: MapView<(u64, u32, AccountOwner), u128>,
 
+    // Local shares for quick user access on their own chain
     #[view(default)]
     pub my_shares: MapView<(u64, u32), u128>,
 }
@@ -52,6 +49,8 @@ pub struct Market {
     pub creator: AccountOwner,
     pub paused: bool,
     pub image: String,
+
+    pub winning_outcome: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
