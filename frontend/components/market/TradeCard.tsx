@@ -26,8 +26,8 @@ import {
 import { useLinera } from "@/lib/contexts/LineraContext";
 
 // --- APP CONFIGURATION ---
-const MARKET_APP_ID = "983303ec70ac2772bb19914c65592ea3f6ee82aafe632e091d821386ffd60aa8";
-const TOKEN_APP_ID = "be1a7aa71f6dd4018a2ec800ebb14ac5b7b927f25d969e6667d26624691de823";
+const MARKET_APP_ID = "24d72c5934ae215760d7c8ae2fc8e74e3513e7316b0725d63f2427657d589d3d";
+const TOKEN_APP_ID = "ef212919b5e422081a41442135ef58dec723426edd4f177b146c81b7891c3c65";
 
 interface ShareData {
   marketId: number;
@@ -42,9 +42,9 @@ const formatFromChain = (value: string | number): number => {
   return val / 10 ** 18;
 };
 
+// Not currently used but good to keep for future atomic unit conversions
 const formatToChain = (value: string): string => {
   if (!value) return "0";
-  // Convert human input (e.g. "10") to Atomic Units (e.g. "10000000000000000000")
   return (parseFloat(value) * 10 ** 18).toLocaleString('fullwide', { useGrouping: false });
 };
 
@@ -55,7 +55,10 @@ export const TradeCard = ({ market }: { market: Market }) => {
   const { client, isConnected, owner, connect, isReady } = useLinera();
   const [balance, setBalance] = useState<string>("0"); // Stores human-readable balance
   const [userShares, setUserShares] = useState<ShareData[]>([]);
+  
+  // Transaction States
   const [isBuying, setIsBuying] = useState(false);
+  const [isSelling, setIsSelling] = useState(false); // NEW: Sell state
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Contract Refs
@@ -77,7 +80,6 @@ export const TradeCard = ({ market }: { market: Market }) => {
     let cancelled = false;
 
     const init = async () => {
-      // Clean up refs if client disconnects
       if (!client) {
         marketContract.current = null;
         tokenContract.current = null;
@@ -89,7 +91,6 @@ export const TradeCard = ({ market }: { market: Market }) => {
       setIsLoadingData(true);
 
       try {
-        // Load Contracts (Directly, removed .frontend())
         if (!marketContract.current) {
           marketContract.current = await client.application(MARKET_APP_ID);
         }
@@ -99,7 +100,6 @@ export const TradeCard = ({ market }: { market: Market }) => {
 
         if (cancelled) return;
 
-        // Fetch Initial Data
         await Promise.all([fetchBalance(), fetchShares()]);
       } catch (err) {
         console.error("Failed to load Linera contracts:", err);
@@ -115,11 +115,10 @@ export const TradeCard = ({ market }: { market: Market }) => {
     };
   }, [client, isConnected, owner, market.market_id]);
 
-  // 2. Fetch Balance Helper (Fixed for Map Storage)
+  // 2. Fetch Balance Helper
   const fetchBalance = async () => {
     if (!tokenContract.current || !owner) return;
     try {
-      // Query specific to Linera Fungible Token storage map
       const query = `{ balance(owner: "${owner}") }`;
       const response = await tokenContract.current.query(`{ "query": ${JSON.stringify(query)} }`);
       const parsed = typeof response === "string" ? JSON.parse(response) : response;
@@ -130,7 +129,7 @@ export const TradeCard = ({ market }: { market: Market }) => {
     }
   };
 
-  // 3. Fetch Shares Helper (Fixed with Map)
+  // 3. Fetch Shares Helper
   const fetchShares = async () => {
     if (!marketContract.current) return;
     try {
@@ -142,7 +141,6 @@ export const TradeCard = ({ market }: { market: Market }) => {
 
       const formattedShares = rawShares.map((share: any) => ({
         ...share,
-        // Convert the string amount from chain to human-readable number
         amount: formatFromChain(share.amount).toString()
       }));
   
@@ -158,11 +156,7 @@ export const TradeCard = ({ market }: { market: Market }) => {
     setIsBuying(true);
 
     const outcomeId = outcome === "yes" ? 0 : 1;
-    
-    // Convert human input back to Atomic Units for the contract
-    // const atomicValue = formatToChain(amountStr);
 
-    // Mutation structure
     const mutation = `
       mutation {
         buy(
@@ -170,30 +164,65 @@ export const TradeCard = ({ market }: { market: Market }) => {
           outcomeId: ${outcomeId}
           minOutcomeSharesToBuy: "0"
           value: "${amountStr}"
-          token: "be1a7aa71f6dd4018a2ec800ebb14ac5b7b927f25d969e6667d26624691de823"
+          token: "${TOKEN_APP_ID}"
         )
       }
     `;
 
     try {
       await marketContract.current.query(`{ "query": ${JSON.stringify(mutation)} }`);
-      
-      // Refresh data after success
       await Promise.all([fetchBalance(), fetchShares()]);
-      setAmountStr(""); // Clear input
+      setAmountStr(""); 
       alert("Buy Successful!");
     } catch (err: any) {
       console.error("Buy failed:", err);
-      
-      if (err.toString().includes("Unsupported dynamic application load")) {
-        alert(
-          "Error: Token Contract not ready.\n\nPlease go to the Faucet page and 'Mint' tokens first to initialize the Token application on your chain."
-        );
-      } else {
-        alert("Transaction failed. Check console for details.");
-      }
+      handleTxError(err);
     } finally {
       setIsBuying(false);
+    }
+  };
+
+  // 5. Handle Sell Mutation (NEW)
+  const handleSell = async () => {
+    if (!marketContract.current || !amountStr) return;
+    setIsSelling(true);
+
+    const outcomeId = outcome === "yes" ? 0 : 1;
+    
+    // Explicitly format the market owner as an Application Owner string
+    const marketOwnerString = `Application:${MARKET_APP_ID}`;
+
+    const mutation = `
+      mutation {
+        sell(
+          marketId: ${market.market_id}
+          outcomeId: ${outcomeId}
+          shares: "${amountStr}"
+          token: "ef212919b5e422081a41442135ef58dec723426edd4f177b146c81b7891c3c65"
+        )
+      }
+    `;
+
+    try {
+      await marketContract.current.query(`{ "query": ${JSON.stringify(mutation)} }`);
+      await Promise.all([fetchBalance(), fetchShares()]);
+      setAmountStr(""); 
+      alert("Sell Successful!");
+    } catch (err: any) {
+      console.error("Sell failed:", err);
+      handleTxError(err);
+    } finally {
+      setIsSelling(false);
+    }
+  };
+
+  const handleTxError = (err: any) => {
+    if (err.toString().includes("Unsupported dynamic application load")) {
+      alert(
+        "Error: Token Contract not ready.\n\nPlease go to the Faucet page and 'Mint' tokens first to initialize the Token application on your chain."
+      );
+    } else {
+      alert("Transaction failed. Check console for details.");
     }
   };
 
@@ -203,7 +232,6 @@ export const TradeCard = ({ market }: { market: Market }) => {
     let y = 0;
     let n = 0;
     userShares.forEach((s) => {
-      // Assuming outcomeId 0 = Yes, 1 = No
       if (s.outcomeId === 0) y += parseFloat(s.amount);
       if (s.outcomeId === 1) n += parseFloat(s.amount);
     });
@@ -213,7 +241,9 @@ export const TradeCard = ({ market }: { market: Market }) => {
   const selectedSharesOwned = outcome === "yes" ? yesOwned : noOwned;
 
   // Logic checks
-  const insufficientBalance = parseFloat(balance) < (parseFloat(amountStr) || 0);
+  const currentAmount = parseFloat(amountStr) || 0;
+  const insufficientBalance = parseFloat(balance) < currentAmount;
+  const insufficientShares = parseFloat(selectedSharesOwned) < currentAmount;
 
   // --- RENDER ACTION BUTTON ---
   const renderActionButton = () => {
@@ -243,24 +273,16 @@ export const TradeCard = ({ market }: { market: Market }) => {
       );
     }
 
-    if (tradeMode === "sell") {
-      return (
-        <Button size="lg" className="w-full h-12 text-base" disabled variant="secondary">
-          Selling Disabled
-        </Button>
-      );
-    }
-
-    if (isBuying) {
+    if (isBuying || isSelling) {
       return (
         <Button size="lg" className="w-full h-12 text-base" disabled>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Processing Buy...
+          Processing...
         </Button>
       );
     }
 
-    if (parseFloat(amountStr) <= 0) {
+    if (currentAmount <= 0) {
       return (
         <Button size="lg" className="w-full h-12 text-base" disabled>
           Enter Amount
@@ -268,6 +290,27 @@ export const TradeCard = ({ market }: { market: Market }) => {
       );
     }
 
+    // --- SELL BUTTON LOGIC ---
+    if (tradeMode === "sell") {
+      if (insufficientShares) {
+        return (
+          <Button size="lg" className="w-full h-12 text-base" variant="destructive" disabled>
+            Insufficient Shares
+          </Button>
+        );
+      }
+      return (
+        <Button
+          size="lg"
+          className="w-full h-12 text-base bg-red-500 hover:bg-red-600"
+          onClick={handleSell}
+        >
+          Sell {outcome === "yes" ? market.outcome_a : market.outcome_b} Shares
+        </Button>
+      );
+    }
+
+    // --- BUY BUTTON LOGIC ---
     if (insufficientBalance) {
       return (
         <Button size="lg" className="w-full h-12 text-base" variant="destructive" disabled>
@@ -296,7 +339,7 @@ export const TradeCard = ({ market }: { market: Market }) => {
         <CardHeader className="p-4">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="buy">Buy</TabsTrigger>
-            <TabsTrigger value="sell" disabled>Sell (Coming Soon)</TabsTrigger>
+            <TabsTrigger value="sell">Sell</TabsTrigger>
           </TabsList>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 px-4 pb-4">
@@ -338,7 +381,7 @@ export const TradeCard = ({ market }: { market: Market }) => {
           {/* Amount Input */}
           <div className="relative">
             <label htmlFor="amount" className="text-sm font-medium">
-              Amount
+              {tradeMode === 'sell' ? 'Shares to Sell' : 'Amount'}
             </label>
             <Input
               id="amount"
@@ -349,12 +392,30 @@ export const TradeCard = ({ market }: { market: Market }) => {
               className="h-12 text-base pr-20"
               min="0"
             />
-            <span className="absolute right-4 top-[2.1rem] text-sm font-medium text-slate-500">
-              Tokens
-            </span>
+            
+            {/* Contextual Right Element */}
+            <div className="absolute right-3 top-[2.1rem] flex items-center gap-2">
+               {tradeMode === 'sell' && (
+                  <button 
+                    onClick={() => setAmountStr(selectedSharesOwned)}
+                    className="text-xs font-semibold text-cyan-600 hover:text-cyan-800 uppercase"
+                  >
+                    Max
+                  </button>
+               )}
+               <span className="text-sm font-medium text-slate-500">
+                  {tradeMode === 'sell' ? 'Shares' : 'Tokens'}
+               </span>
+            </div>
+
+            {/* Balance / Shares Display Top Right */}
             {isClient && isConnected && (
               <div className="absolute right-0 top-0 text-xs text-slate-500">
-                Balance: {isLoadingData ? "..." : parseFloat(balance).toFixed(2)}
+                {tradeMode === 'buy' ? (
+                   <span>Balance: {isLoadingData ? "..." : parseFloat(balance).toFixed(2)}</span>
+                ) : (
+                   <span>Available: {isLoadingData ? "..." : selectedSharesOwned}</span>
+                )}
               </div>
             )}
           </div>
