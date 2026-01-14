@@ -58,7 +58,7 @@ export const TradeCard = ({ market }: { market: Market }) => {
   
   // Transaction States
   const [isBuying, setIsBuying] = useState(false);
-  const [isSelling, setIsSelling] = useState(false); // NEW: Sell state
+  const [isSelling, setIsSelling] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Contract Refs
@@ -114,6 +114,19 @@ export const TradeCard = ({ market }: { market: Market }) => {
       cancelled = true;
     };
   }, [client, isConnected, owner, market.market_id]);
+
+  // Auto-refresh data periodically
+  useEffect(() => {
+    if (!isConnected || !owner) return;
+
+    const interval = setInterval(() => {
+      Promise.all([fetchBalance(), fetchShares()]).catch(err => {
+        console.error("Auto-refresh failed:", err);
+      });
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [isConnected, owner, market.market_id]);
 
   // 2. Fetch Balance Helper
   const fetchBalance = async () => {
@@ -182,7 +195,7 @@ export const TradeCard = ({ market }: { market: Market }) => {
     }
   };
 
-  // 5. Handle Sell Mutation (NEW)
+  // 5. Handle Sell Mutation
   const handleSell = async () => {
     if (!marketContract.current || !amountStr) return;
     setIsSelling(true);
@@ -424,6 +437,15 @@ export const TradeCard = ({ market }: { market: Market }) => {
 
           {/* Stats Summary */}
           <div className="flex flex-col gap-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-600 dark:text-slate-400">
+                Token Balance
+              </span>
+              <span className="font-medium text-slate-900 dark:text-slate-50">
+                {isConnected ? (isLoadingData ? "..." : parseFloat(balance).toFixed(2)) : "-"}
+              </span>
+            </div>
+
             <div className="flex justify-between">
               <span className="text-slate-600 dark:text-slate-400">
                 Your Shares ({outcome === "yes" ? "Yes" : "No"})
